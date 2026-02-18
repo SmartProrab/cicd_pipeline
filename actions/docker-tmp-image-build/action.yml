@@ -1,0 +1,61 @@
+name: Build App and Temporary Docker image
+description: Build Spring Boot application and Build Docker image with tag associate to branch name
+author: NikitaLyubimtsev
+
+inputs:
+  image_repository:
+    description: Path to docker image repository
+    required: true
+  use_short_sha:
+    description: Append short commit SHA to tag (for dev/beta)
+    required: false
+    default: 'false'
+
+outputs:
+  docker_tag:
+    description: Default docker image tag
+    value: ${{ steps.docker-tag.outputs.tag }}
+
+runs:
+  using: composite
+  steps:
+    - name: Gradle cache
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+    - name: Setup JDK 21
+      uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: 21
+    - name: Build app jar
+      shell: bash
+      run: ./gradlew clean build -x test
+    - name: Create docker default tag
+      shell: bash
+      id: docker-tag
+      run: |
+        BRANCH_NAME=${GITHUB_REF##*/}
+        TAG=""
+        
+        if [[ "$BRANCH_NAME" == "main" ]]; then
+          TAG="latest"
+        else
+          TAG="$BRANCH_NAME"
+        fi
+        
+        if [[ "${{ inputs.use_short_sha }}" == "true" && "$BRANCH_NAME" != "main" ]]; then
+          SHORT_SHA=${GITHUB_SHA:0:7}
+          TAG="${TAG}-${SHORT_SHA}"
+        fi
+        
+        echo "Docker tag: $TAG"
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+    - name: Build Docker image (temporary tags)
+      shell: bash
+      run: docker build -t ${{ inputs.image_repository }}:${{ steps.docker-tag.outputs.tag }} .
