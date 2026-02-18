@@ -1,0 +1,24 @@
+name: Normalize Repo & Prepare Docker Tag
+description: Normalize GitHub repo to lowercase and generate Docker tag
+author: NikitaLyubimtsev
+
+outputs:
+  repo_lower:
+    description: Lowercase repository full name
+    value: ${{ steps.normalized.outputs.repo_lower }}
+  image_repository:
+    description: Full GHCR image repository path
+    value: ${{ steps.docker_tag.outputs.image_repository }}
+
+runs:
+  using: composite
+  steps:
+    - name: Normalize repository name
+      id: normalized
+      shell: bash
+      run: |
+        REPO_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+        IMAGE_REPO="ghcr.io/${REPO_LOWER}"
+        
+        echo "repo_lower=$REPO_LOWER" >> $GITHUB_OUTPUT
+        echo "image_repository=$IMAGE_REPO" >> $GITHUB_OUTPUT
