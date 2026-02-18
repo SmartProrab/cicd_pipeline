@@ -1,0 +1,31 @@
+name: Release
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Install semantic-release deps
+        shell: bash
+        run: |
+          npm init -y
+          npm install --no-save \
+          semantic-release@25 \
+          @semantic-release/commit-analyzer@12 \
+          @semantic-release/release-notes-generator@13 \
+          @semantic-release/github@12
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
