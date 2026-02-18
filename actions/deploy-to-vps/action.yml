@@ -1,0 +1,63 @@
+name: Deploy application
+description: Deploy application with docker image on VPS
+author: NikitaLyubimtsev
+
+inputs:
+  tag:
+    description: Docker image tag to deploy (from previous build)
+    required: true
+  app_name:
+    description: Name of app
+    required: true
+  host:
+    description: url of hosts to deploy
+    required: true
+  username:
+    description: hosts username
+    required: true
+  key:
+    description: hosts ssl key
+    required: true
+  path:
+    description: Path to VPS on docker compose with this app without '~/'
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ inputs.host }}
+        username: ${{ inputs.username }}
+        key: ${{ inputs.key }}
+        script: |
+          set -e
+
+          echo "Deploying environment: ${{ inputs.environment }}"
+          echo "Using Docker tag: ${{ inputs.tag }}"
+
+          if [[ -n "${{ inputs.path }}" ]]; then
+            cd ~/"${{ inputs.path }}"
+          fi
+
+          if [ ! -f docker-compose.yml ]; then
+            echo "docker-compose,yml not found in $(pwd)"
+            exit 1
+          fi
+
+          echo "Pull Docker image for service: ${{ inputs.app_name }}"
+          docker compose pull "${{ inputs.app_name }}"
+
+          echo "Stopping old containers"
+          docker compose down "${{ inputs.app_name }}" --remove-orphans
+
+          export TAG=${{ inputs.tag }}
+
+          echo "Starting container with tag ${TAG}..."
+          docker compose up -d "${{ inputs.app_name }}"
+
+          echo "Cleaning up old images..."
+          docker image prune -f
+
+          echo "Deployment finished for ${{ inputs.environment }}"
