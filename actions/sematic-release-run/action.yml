@@ -1,0 +1,73 @@
+name: Run Semantic release
+author: NikitaLyubimtsev
+description: Set default config and run semantic release with current repository
+
+outputs:
+  last_version:
+    description: Last release version with semantic-release
+    value: ${{ steps.get-version.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: 22
+    - name: Install semantic-release deps
+      shell: bash
+      run: |
+        npm init -y
+        npm install --no-save \
+        semantic-release@25 \
+        @semantic-release/commit-analyzer@12 \
+        @semantic-release/release-notes-generator@13 \
+        @semantic-release/exec@6 \
+        @semantic-release/github@12
+    - name: Run semantic-release
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: npx semantic-release --extends "$GITHUB_ACTION_PATH/release.config.js"
+
+    - name: Read new release version
+      id: get-version
+      shell: bash
+      run: |
+        VERSION=""
+        if [[ -f "$GITHUB_WORKSPACE/.release_version" ]]; then
+          VERSION=$(cat .release_version)
+        fi
+        
+        echo "version=VERSION" >> $GITHUB_OUTPUT
+        
+
+#    - name: Detect semantic-release config
+#      id: detect
+#      shell: bash
+#      run: |
+#        set -e
+#
+#        if [[ -f "$GITHUB_WORKSPACE/release.config.js" ]] || \
+#           [[ -f "$GITHUB_WORKSPACE/.releaserc" ]] || \
+#           [[ -f "$GITHUB_WORKSPACE/.releaserc.json" ]] || \
+#           [[ -f "$GITHUB_WORKSPACE/.releaserc.yaml" ]] || \
+#           [[ -f "$GITHUB_WORKSPACE/.releaserc.yml" ]]; then
+#          echo "found=true" >> $GITHUB_OUTPUT
+#          return 0
+#        fi
+#
+#        if [[ -f "$GITHUB_WORKSPACE/package.json" ]]; then
+#          if grep -q '"release"' "$GITHUB_WORKSPACE/package.json"; then
+#            echo "found=true" >> $GITHUB_OUTPUT
+#            return 0
+#          fi
+#        fi
+#
+#        echo "found=false" >> $GITHUB_OUTPUT
+#    - name: Set default semantic-release config
+#      shell: bash
+#      run: |
+#        echo "No semantic-release config found. Using default."
+#        cp "$GITHUB_ACTION_PATH/release.config.js" \
+#           "$GITHUB_WORKSPACE/release.config.js"
