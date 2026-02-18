@@ -8,7 +8,7 @@ outputs:
     value: ${{ steps.normalized.outputs.repo_lower }}
   image_repository:
     description: Full GHCR image repository path
-    value: ${{ steps.docker_tag.outputs.image_repository }}
+    value: ${{ steps.normalized.outputs.image_repository }}
 
 runs:
   using: composite
