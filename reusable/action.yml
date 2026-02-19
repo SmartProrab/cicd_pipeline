@@ -1,0 +1,94 @@
+name: Reusable CI/CD Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        description: Name of app
+        required: true
+        type: string
+      deploy:
+        description: Flag is running deploy operation
+        required: false
+        type: boolean
+        default: false
+      path:
+        description: Path to VPS on docker compose with this app without '~/'
+        required: false
+        type: string
+    secrets:
+      VPS_HOST:
+        description: VPS host ip address
+        required: false
+
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+    outputs:
+      image_repository: ${{ steps.normalize.outputs.image_repository }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: SmartProrab/cicd_pipeline/actions/normalize-repo-name@v0.2.0-dev.6
+        id: normalize
+      - run: |
+          echo "REPO: ${{ steps.normalize.outputs.image_repository }}"
+
+  build_docker:
+    runs-on: ubuntu-latest
+    needs: normalize
+    outputs:
+      default_docker_image: ${{ steps.docker-build.outputs.default_docker_image }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: SmartProrab/cicd_pipeline/actions/docker-tmp-image-build@v0.2.0-dev.6
+        id: docker-build
+        with:
+          image_repository: ${{ needs.normalize.outputs.image_repository }}
+
+  release:
+    runs-on: ubuntu-latest
+    needs: normalize
+    outputs:
+      last_version: ${{ steps.semver.outputs.last_version }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: SmartProrab/cicd_pipeline/actions/semantic-release-run@v0.2.0-dev.6
+        id: semver
+
+  push_to_container_registry:
+    runs-on: ubuntu-latest
+    needs: [normalize, build_docker, release]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: SmartProrab/cicd_pipeline/actions/docker-image-publish@v0.2.0-dev.6
+        with:
+          default_docker_image: ${{ needs.build_docker.outputs.default_docker_image }}
+          image_repository: ${{ needs.normalize.outputs.image_repository }}
+          docker_tag_version: ${{ needs.release.outputs.last_version }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [normalize, build_docker, release, push_to_container_registry]
+    environment: ${{ github.ref_name }}
+    steps:
+      - shell: bash
+        id: image-name
+        run: |
+          IMAGE_REPOSITORY=${{ needs.normalize.outputs.image_repository }}
+          LAST_VERSION=${{ needs.release.outputs.last_version }}
+          
+          IMAGE="${{ needs.build_docker.outputs.default_docker_image }}"
+          if [[ -n "$LAST_VERSION" ]]; then
+            IMAGE="$IMAGE_REPOSITORY:$LAST_VERSION"
+          fi
+          
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+      - name: Deploy via VPS
+        uses: SmartProrab/cicd_pipeline/actions/deploy-to-vps@v0.2.0-dev.6
+        with:
+          app_name: 'master-app'
+          host: ${{ secrets.VPS_HOST }}
+          image_with_tag: ${{ steps.image-name.outputs.image }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          username: ${{ secrets.VPS_DEPLOY_USER }}
+          path: 'master-app'
