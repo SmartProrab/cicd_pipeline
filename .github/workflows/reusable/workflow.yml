@@ -68,7 +68,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ inputs.deploy == 'true' }}
+    if: ${{ inputs.deploy }}
     needs: [ normalize, build_docker, release, push_to_container_registry ]
     environment: ${{ github.ref_name }}
     steps:
