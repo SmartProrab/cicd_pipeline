@@ -11,7 +11,8 @@ inputs:
     required: true
   docker_tag_version:
     description: Tag for docker image with last version
-    required: true
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -21,11 +22,34 @@ runs:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create branch docker tag
+      id: branch-tag
+      shell: bash
+      run: |
+        BRANCH_NAME=${GITHUB_REF##*/}
+
+        if [[ "$BRANCH_NAME" == "main" ]]; then
+          TAG="latest"
+        else
+          SAFE_BRANCH=$(echo "$BRANCH_NAME" | tr '/' '-')
+          TAG="$SAFE_BRANCH"
+        fi
+
+        echo "Docker tag: $TAG"
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
     - name: Version Docker image pushed
       shell: bash
       run: | 
-        docker tag "${{ inputs.default_docker_image }}" "${{ inputs.image_repository }}:${{ inputs.docker_tag_version }}"
-        echo "Tagged for release: ${{ inputs.docker_tag_version }}"
+        set -euo pipefail 
+        SOURCE_IMAGE="${{ inputs.default_docker_image }}"
+        BRANCH_IMAGE="${{ inputs.image_repository }}:${{ steps.branch-tag.outputs.tag }}"
+        docker pull "$SOURCE_IMAGE"
         
-        docker push "${{ inputs.image_repository }}:${{ inputs.docker_tag_version }}"
-        echo "Pushed for release: ${{ inputs.docker_tag_version }}"
+        docker tag "$SOURCE_IMAGE" "$BRANCH_IMAGE" 
+        docker push "$BRANCH_IMAGE"
+        
+        if [[ -n "${{ inputs.docker_tag_version }}" ]]; then
+          VERSION_IMAGE="${{ inputs.image_repository }}:${{ inputs.docker_tag_version }}"
+          docker tag "$SOURCE_IMAGE" "$VERSION_IMAGE"
+          docker push "$VERSION_IMAGE"
+        fi

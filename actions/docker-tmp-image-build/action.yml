@@ -6,15 +6,11 @@ inputs:
   image_repository:
     description: Path to docker image repository
     required: true
-  use_short_sha:
-    description: Append short commit SHA to tag (for dev/beta)
-    required: false
-    default: 'false'
 
 outputs:
   default_docker_image:
     description: Default docker image tag
-    value: ${{ steps.docker-tag.outputs.tag }}
+    value: ${{ steps.publish-default.outputs.default_image }}
 
 runs:
   using: composite
@@ -41,20 +37,9 @@ runs:
       id: docker-tag
       run: |
         BRANCH_NAME=${GITHUB_REF##*/}
-        TAG=""
-        
-        if [[ "$BRANCH_NAME" == "main" ]]; then
-          TAG="latest"
-        else
-          TAG="$BRANCH_NAME"
-        fi
-        
-        if [[ "${{ inputs.use_short_sha }}" == "true" && "$BRANCH_NAME" != "main" ]]; then
-          SHORT_SHA=${GITHUB_SHA:0:7}
-          TAG="${TAG}-${SHORT_SHA}"
-        fi
-        
-        echo "Docker tag: $TAG"
+        SAFE_BRANCH=$(echo "$BRANCH_NAME" | tr '/' '-')
+        BASE_TAG="ci-${SAFE_BRANCH}"
+        TAG="${BASE_TAG}-${GITHUB_SHA:0:7}"
         echo "tag=$TAG" >> $GITHUB_OUTPUT
     - name: Build Docker image (temporary tags)
       shell: bash
@@ -65,5 +50,10 @@ runs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     - name: Publish default docker image
+      id: publish-default
       shell: bash
-      run: docker push ${{ steps.docker-tag.outputs.tag }}
+      run: |
+        set -euo pipefail
+        DEFAULT_DOCKER_IMAGE="${{ inputs.image_repository }}:${{ steps.docker-tag.outputs.tag }}" 
+        docker push ${DEFAULT_DOCKER_IMAGE}
+        echo "default_image=$DEFAULT_DOCKER_IMAGE" >> $GITHUB_OUTPUT
