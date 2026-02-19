@@ -39,35 +39,4 @@ runs:
           VERSION=$(cat .release_version)
         fi
         
-        echo "version=VERSION" >> $GITHUB_OUTPUT
-        
-
-#    - name: Detect semantic-release config
-#      id: detect
-#      shell: bash
-#      run: |
-#        set -e
-#
-#        if [[ -f "$GITHUB_WORKSPACE/release.config.js" ]] || \
-#           [[ -f "$GITHUB_WORKSPACE/.releaserc" ]] || \
-#           [[ -f "$GITHUB_WORKSPACE/.releaserc.json" ]] || \
-#           [[ -f "$GITHUB_WORKSPACE/.releaserc.yaml" ]] || \
-#           [[ -f "$GITHUB_WORKSPACE/.releaserc.yml" ]]; then
-#          echo "found=true" >> $GITHUB_OUTPUT
-#          return 0
-#        fi
-#
-#        if [[ -f "$GITHUB_WORKSPACE/package.json" ]]; then
-#          if grep -q '"release"' "$GITHUB_WORKSPACE/package.json"; then
-#            echo "found=true" >> $GITHUB_OUTPUT
-#            return 0
-#          fi
-#        fi
-#
-#        echo "found=false" >> $GITHUB_OUTPUT
-#    - name: Set default semantic-release config
-#      shell: bash
-#      run: |
-#        echo "No semantic-release config found. Using default."
-#        cp "$GITHUB_ACTION_PATH/release.config.js" \
-#           "$GITHUB_WORKSPACE/release.config.js"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
