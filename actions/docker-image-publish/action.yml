@@ -1,0 +1,31 @@
+name: Publication docker image
+description: Publication docker image in Github container registry
+author: NikitaLyubimtsev
+
+inputs:
+  image_repository:
+    description: Full GHCR image repository path
+    required: true
+  default_docker_image:
+    description: Tag for docker image without version (latest, beta, dev, dev-sha)
+    required: true
+  docker_tag_version:
+    description: Tag for docker image with last version
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Version Docker image pushed
+      shell: bash
+      run: | 
+        docker tag "${{ inputs.default_docker_image }}" "${{ inputs.image_repository }}:${{ inputs.docker_tag_version }}"
+        echo "Tagged for release: ${{ inputs.docker_tag_version }}"
+        
+        docker push "${{ inputs.image_repository }}:${{ inputs.docker_tag_version }}"
+        echo "Pushed for release: ${{ inputs.docker_tag_version }}"

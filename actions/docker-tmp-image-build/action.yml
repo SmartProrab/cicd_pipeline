@@ -12,7 +12,7 @@ inputs:
     default: 'false'
 
 outputs:
-  docker_tag:
+  default_docker_image:
     description: Default docker image tag
     value: ${{ steps.docker-tag.outputs.tag }}
 
@@ -59,3 +59,11 @@ runs:
     - name: Build Docker image (temporary tags)
       shell: bash
       run: docker build -t ${{ inputs.image_repository }}:${{ steps.docker-tag.outputs.tag }} .
+    - uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Publish default docker image
+      shell: bash
+      run: docker push ${{ steps.docker-tag.outputs.tag }}
