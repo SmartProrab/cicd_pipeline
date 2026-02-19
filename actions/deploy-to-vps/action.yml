@@ -1,0 +1,106 @@
+name: Deploy application
+description: Deploy application with docker image on VPS
+author: NikitaLyubimtsev
+
+inputs:
+  image_with_tag:
+    description: Full image name (e.g. ghcr.io/org/app:{tag})
+    required: true
+  app_name:
+    description: Name of app
+    required: true
+  host:
+    description: url of hosts to deploy
+    required: true
+  username:
+    description: hosts username
+    required: true
+  key:
+    description: hosts ssl key
+    required: true
+  path:
+    description: Path to VPS on docker compose with this app without '~/'
+    required: false
+  health_timeout:
+    description: Seconds to wait for healthy container
+    required: false
+    default: "60"
+
+runs:
+  using: composite
+  steps:
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ inputs.host }}
+        username: ${{ inputs.username }}
+        key: ${{ inputs.key }}
+        script: |
+          set -e
+          
+          APP="${{ inputs.app_name }}"
+          IMAGE="${{ inputs.image_with_tag }}"
+          TIMEOUT="${{ inputs.health_timeout }}"
+          
+          if [[ -n "${{ inputs.path }}" ]]; then
+            cd ~/"${{ inputs.path }}"
+          fi
+
+          if [ ! -f docker-compose.yml ]; then
+            echo "docker-compose.yml not found in $(pwd)"
+            exit 1
+          fi
+          
+          echo "Detecting current container..."
+          OLD_CONTAINER=$(docker compose ps -q "$APP" || true)
+          
+          OLD_IMAGE=""
+          if [[ -n "$OLD_CONTAINER" ]]; then
+            OLD_IMAGE=$(docker inspect --format='{{.Config.Image}}' "$OLD_CONTAINER")
+          fi
+          
+          echo "Current image: $OLD_IMAGE"
+          echo "Pull new image: $IMAGE"
+          
+          export TAG="$IMAGE"
+          docker compose pull "$APP"
+          
+          echo "Starting updated container..."
+          if ! docker compose up -d --no-deps "$APP"; then
+            echo "Failed to start new container"
+            exit 1
+          fi
+          
+          echo "Waiting for healthcheck $TIMEOUT seconds..."
+          START_TIME=$(date +%s)
+          while true; do
+            CONTAINER_ID=$(docker compose ps -q "$APP")
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_ID" 2>/dev/null || echo "no-healthcheck")
+            
+            if [[ "$STATUS" == "healthy" ]] || [[ "$STATUS" == "no-healthcheck" ]]; then
+              echo "Container is healthy"
+              break
+            fi
+          
+            NOW=$(date +%s)
+            ELAPSED=$((NOW - START_TIME))
+          
+            if [[ $ELAPSED -ge $TIMEOUT ]]; then
+              echo "Healthcheck timeout reached"
+              echo "Rolling back..."
+          
+              if [[ -n "$OLD_IMAGE" ]]; then
+                export TAG=$(echo "$OLD_IMAGE")
+                doсker compose up -d --no-deps "$APP" 
+              fi
+          
+              exit 1
+            fi
+          
+            sleep 3
+          done
+          
+          echo "Cleaning dangling images..."
+          docker image prune -f
+
+          echo "Deploy finished successfully"
