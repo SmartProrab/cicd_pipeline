@@ -62,9 +62,8 @@ runs:
           echo "Current image: $OLD_IMAGE"
           echo "Pull new image: $IMAGE"
           
-          docker compose pull "$APP"
-          
           export TAG="$IMAGE"
+          docker compose pull "$APP"
           
           echo "Starting updated container..."
           if ! docker compose up -d --no-deps "$APP"; then
