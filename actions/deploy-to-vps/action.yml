@@ -168,8 +168,8 @@ runs:
 
           REPO=$(echo "$IMAGE" | cut -d: -f1)
           CURRENT_ID=$(docker image inspect "$IMAGE" --format '{{.Id}}')
-          IMAGES_TO_REMOVE=$(docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' \
-            | awk -v repo="$REPO" -v keep="$IMAGE" '$1 ~ "^"repo":" && != keep {print $2}' || true)
+          IMAGES_TO_REMOVE=(docker images "$REPO" --format '{{.ID}}' \
+            | grep -v "$CURRENT_ID" || true)
 
           if [[ -n "$IMAGES_TO_REMOVE" ]]; then
             log "Removing images: $IMAGES_TO_REMOVE"
