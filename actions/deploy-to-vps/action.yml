@@ -39,9 +39,9 @@ runs:
   using: composite
   steps:
     - uses: actions/checkout@v6
-    - name: Check deploy.sh exists
-      shell: bash
-      run: ls -la "$GITHUB_ACTION_PATH/actions/deploy-to-vps/deploy.sh"
+#    - name: Check deploy.sh exists
+#      shell: bash
+#      run: ls -la "$GITHUB_ACTION_PATH/actions/deploy-to-vps/deploy.sh"
     - name: Copy deploy.sh to VPS
       uses: appleboy/scp-action@v1
       with:
