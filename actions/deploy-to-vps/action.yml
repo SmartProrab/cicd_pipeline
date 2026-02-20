@@ -168,14 +168,26 @@ runs:
 
           REPO=$(echo "$IMAGE" | cut -d: -f1)
           CURRENT_ID=$(docker image inspect "$IMAGE" --format '{{.Id}}')
-          IMAGES_TO_REMOVE=$(docker images "$REPO" --format '{{.ID}}' \
-            | grep -v "$CURRENT_ID" || true)
-
+          
+          # Получаем только образы репозитория
+          ALL_IDS=$(docker images "$REPO" --format '{{.ID}}')
+          
+          IMAGES_TO_REMOVE=""
+          
+          for ID in $ALL_IDS; do
+            if [[ "$ID" != "$CURRENT_ID" ]]; then
+              IN_USE=$(docker ps -a --filter "ancestor=$ID" -q)
+              if [[ -z "$IN_USE" ]]; then
+              IMAGES_TO_REMOVE="$IMAGES_TO_REMOVE $ID"
+              fi
+            fi
+          done
+          
           if [[ -n "$IMAGES_TO_REMOVE" ]]; then
-            log "Removing images: $IMAGES_TO_REMOVE"
-            docker rmi -f $IMAGES_TO_REMOVE
+            log "Removing images:$IMAGES_TO_REMOVE"
+            docker rmi $IMAGES_TO_REMOVE || true
           else
-            log "No old images to remove"
+            log "No removable images found"
           fi
 
           log "Deploy finished successfully!"
