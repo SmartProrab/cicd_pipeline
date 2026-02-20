@@ -168,7 +168,7 @@ runs:
 
           REPO=$(echo "$IMAGE" | cut -d: -f1)
           CURRENT_ID=$(docker image inspect "$IMAGE" --format '{{.Id}}')
-          IMAGES_TO_REMOVE=(docker images "$REPO" --format '{{.ID}}' \
+          IMAGES_TO_REMOVE=$(docker images "$REPO" --format '{{.ID}}' \
             | grep -v "$CURRENT_ID" || true)
 
           if [[ -n "$IMAGES_TO_REMOVE" ]]; then
