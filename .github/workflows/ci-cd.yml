@@ -25,6 +25,7 @@ on:
         description: URL current docker image
         type: string
         required: false
+        default: ''
       pre_branch:
         description: Branch with merged post release
         type: string
