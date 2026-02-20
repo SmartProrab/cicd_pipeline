@@ -38,9 +38,16 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Copy deploy.sh to workspace
-      shell: bash
-      run: cp "$GITHUB_ACTION_PATH/deploy.sh" "$GITHUB_WORKSPACE/deploy.sh"
+    - uses: actions/checkout@v6
+    - name: Copy deploy.sh to VPS
+      uses: appleboy/scp-action@v1
+      with:
+        host: ${{ inputs.host }}
+        username: ${{ inputs.username }}
+        key: ${{ inputs.key }}
+        source: "$GITHUB_WORKSPACE/actions/deploy-to-vps/deploy.sh"
+        target: "~/deploy.sh"
+
     - name: Deploy via SSH
       uses: appleboy/ssh-action@v1.0.3
       with:
@@ -48,10 +55,11 @@ runs:
         username: ${{ inputs.username }}
         key: ${{ inputs.key }}
         script: |
+          chmod +x ~/deploy.sh
           export APP="${{ inputs.app_name }}"
           export IMAGE="${{ inputs.image_with_tag }}"
           export APP_TYPE="${{ inputs.app_type }}"
           export TIMEOUT="${{ inputs.health_timeout }}"
           export PATH_TO_APP="${{ inputs.path }}"
           export APP_IMAGE_URL="${{ inputs.app_image_url }}"
-          bash "$GITHUB_WORKSPACE/deploy.sh"
+          ~/deploy.sh
