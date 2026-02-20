@@ -25,7 +25,7 @@ on:
         description: URL current docker image
         type: string
         required: false
-      pre_brance:
+      pre_branch:
         description: Branch with merged post release
         type: string
         required: false
@@ -83,7 +83,7 @@ jobs:
   merged_tag_in_pre:
     runs-on: ubuntu-latest
     needs: [ normalize, build_docker, release ]
-    if: ${{ inputs.pre_brance != '' }}
+    if: ${{ inputs.pre_branch != '' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -92,7 +92,7 @@ jobs:
           git fetch
           
           SOURCE="origin/${{ github.ref_name }}"
-          TARGET="${{ inputs.pre_brance }}"
+          TARGET="${{ inputs.pre_branch }}"
           
           git checkout "$TARGET"
           
