@@ -44,91 +44,100 @@ runs:
         username: ${{ inputs.username }}
         key: ${{ inputs.key }}
         script: |
-          set -e
+          export APP=${{ inputs.app_name }}
+          export IMAGE=${{ inputs.image_with_tag }}
+          export APP_TYPE=${{ inputs.app_type }}
+          export TIMEOUT=${{ inputs.health_timeout }}
+          export PATH_TO_APP=${{ inputs.path }}
+          export APP_IMAGE_URL=${{ inputs.app_image_url }}
+          ./deploy.sh
           
-          APP="${{ inputs.app_name }}"
-          IMAGE="${{ inputs.image_with_tag }}"
-          TIMEOUT="${{ inputs.health_timeout }}"
-          
-          if [[ -n "${{ inputs.path }}" ]]; then
-            cd ~/"${{ inputs.path }}"
-          fi
 
-          if [ ! -f docker-compose.yml ]; then
-            echo "docker-compose.yml not found in $(pwd)"
-            exit 1
-          fi
-          
-          echo "Detecting current container..."
-          OLD_CONTAINER=$(docker compose ps -q "$APP" || true)
-          
-          OLD_IMAGE=""
-          if [[ -n "$OLD_CONTAINER" ]]; then
-            OLD_IMAGE=$(docker inspect --format='{{.Config.Image}}' "$OLD_CONTAINER")
-          fi
-          
-          echo "Current image: $OLD_IMAGE"
-          echo "Pull new image: $IMAGE"
-                  
-          APP_IMAGE_URL=""
-          if [[ -n "${{ inputs.app_image_url }}" ]]; then
-            APP_IMAGE_URL="${{ inputs.app_image_url }}"
-          fi
-          
-          APP_IMAGE_URL=$(echo "$APP" | tr '[:lower:]-' '[:upper:]_')_IMAGE
-          echo "AUTOCREATED APP_IMAGE_URL"
-#          export TAG="$IMAGE"
-          export "${APP_IMAGE_URL}"="$IMAGE"
-          docker compose pull "$APP"
-          
-          echo "Starting updated container..."
-          if ! docker compose up -d --no-deps "$APP"; then
-            echo "Failed to start new container"
-            exit 1
-          fi
-          
-          APP_TYPE="${{ inputs.app_type }}"
-          echo "Waiting for healthcheck $TIMEOUT seconds..."
-          START_TIME=$(date +%s)
-          while true; do
-            CONTAINER_ID=$(docker compose ps -q "$APP")
-          
-            if [[ "$APP_TYPE" == "spring" ]]; then
-              STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_ID" 2>/dev/null || echo "no-healthcheck")
-              if [[ "$STATUS" == "healthy" ]] || [[ "$STATUS" == "no-healthcheck" ]]; then
-                echo "Container is healthy"
-                break
-              fi  
-            elif [[ "$APP_TYPE" == "vue" ]]; then
-              HTTP_CODE=$(docker exec "$CONTAINER_ID" curl -s -o /dev/null -w "%{http_code}" http://localhost:80/ || echo 0)
-              if [[ "$HTTP_CODE" == "200" ]]; then
-                echo "Vue container is responding"
-                break
-              fi
-            else
-              echo "Unknown app type: $APP_TYPE"
-              exit 1
-            fi
-          
-            NOW=$(date +%s)
-            ELAPSED=$((NOW - START_TIME))
-          
-            if [[ $ELAPSED -ge $TIMEOUT ]]; then
-              echo "Healthcheck timeout reached"
-              echo "Rolling back..."
-          
-              if [[ -n "$OLD_IMAGE" ]]; then
-                export TAG=$(echo "$OLD_IMAGE")
-                docker compose up -d --no-deps "$APP" 
-              fi
-          
-              exit 1
-            fi
-          
-            sleep 3
-          done
-          
-          echo "Cleaning dangling images..."
-          docker image prune -f
-
-          echo "Deploy finished successfully"
+#          set -e
+#
+#          APP="${{ inputs.app_name }}"
+#          IMAGE="${{ inputs.image_with_tag }}"
+#          TIMEOUT="${{ inputs.health_timeout }}"
+#
+#          if [[ -n "${{ inputs.path }}" ]]; then
+#            cd ~/"${{ inputs.path }}"
+#          fi
+#
+#          if [ ! -f docker-compose.yml ]; then
+#            echo "docker-compose.yml not found in $(pwd)"
+#            exit 1
+#          fi
+#
+#          echo "Detecting current container..."
+#          OLD_CONTAINER=$(docker compose ps -q "$APP" || true)
+#
+#          OLD_IMAGE=""
+#          if [[ -n "$OLD_CONTAINER" ]]; then
+#            OLD_IMAGE=$(docker inspect --format='{{.Config.Image}}' "$OLD_CONTAINER")
+#          fi
+#
+#          echo "Current image: $OLD_IMAGE"
+#          echo "Pull new image: $IMAGE"
+#
+#          APP_IMAGE_URL=""
+#          if [[ -n "${{ inputs.app_image_url }}" ]]; then
+#            APP_IMAGE_URL="${{ inputs.app_image_url }}"
+#          fi
+#
+#          APP_IMAGE_URL=$(echo "$APP" | tr '[:lower:]-' '[:upper:]_')_IMAGE
+#          echo "AUTOCREATED APP_IMAGE_URL"
+##          export TAG="$IMAGE"
+#          export "${APP_IMAGE_URL}"="$IMAGE"
+#          docker compose pull "$APP"
+#
+#          echo "Starting updated container..."
+#          if ! docker compose up -d --no-deps "$APP"; then
+#            echo "Failed to start new container"
+#            exit 1
+#          fi
+#
+#          APP_TYPE="${{ inputs.app_type }}"
+#          echo "Waiting for healthcheck $TIMEOUT seconds..."
+#          START_TIME=$(date +%s)
+#          while true; do
+#            CONTAINER_ID=$(docker compose ps -q "$APP")
+#
+#            if [[ "$APP_TYPE" == "spring" ]]; then
+#              STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_ID" 2>/dev/null || echo "no-healthcheck")
+#              if [[ "$STATUS" == "healthy" ]] || [[ "$STATUS" == "no-healthcheck" ]]; then
+#                echo "Container is healthy"
+#                break
+#              fi
+#            elif [[ "$APP_TYPE" == "vue" ]]; then
+#              HTTP_CODE=$(docker exec "$CONTAINER_ID" curl -s -o /dev/null -w "%{http_code}" http://localhost:80/ || echo 0)
+#              if [[ "$HTTP_CODE" == "200" ]]; then
+#                echo "Vue container is responding"
+#                break
+#              fi
+#            else
+#              echo "Unknown app type: $APP_TYPE"
+#              exit 1
+#            fi
+#
+#            NOW=$(date +%s)
+#            ELAPSED=$((NOW - START_TIME))
+#
+#            if [[ $ELAPSED -ge $TIMEOUT ]]; then
+#              echo "Healthcheck timeout reached"
+#              echo "Rolling back..."
+#
+#              if [[ -n "$OLD_IMAGE" ]]; then
+#                export TAG=$(echo "$OLD_IMAGE")
+#                docker compose up -d --no-deps "$APP"
+#              fi
+#
+#              exit 1
+#            fi
+#
+#            sleep 3
+#          done
+#
+#          echo "Cleaning dangling images..."
+#          docker image prune -f
+#
+#          echo "Deploy finished successfully"
