@@ -33,4 +33,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
-
+      - name: Merged tag into dev
+        if: ${{ github.ref_name == 'main' }}
+        run: |
+          git fetch
+          
+          SOURCE="origin/${{ github.ref_name }}"
+          TARGET="dev"
+          
+          git checkout "$TARGET"
+          
+          if git merge-base --is-ancestor "$SOURCE" HEAD; then
+            echo "Already to up date"
+          else
+            git merge --no-edit "$SOURCE"
+            git push origin "$TARGET"
+          fi
