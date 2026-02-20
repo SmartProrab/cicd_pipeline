@@ -38,6 +38,9 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Copy deploy.sh to workspace
+      shell: bash
+      run: cp "$GITHUB_ACTION_PATH/deploy.sh" "$GITHUB_WORKSPACE/deploy.sh"
     - name: Deploy via SSH
       uses: appleboy/ssh-action@v1.0.3
       with:
@@ -51,4 +54,4 @@ runs:
           export TIMEOUT="${{ inputs.health_timeout }}"
           export PATH_TO_APP="${{ inputs.path }}"
           export APP_IMAGE_URL="${{ inputs.app_image_url }}"
-          bash "$GITHUB_ACTION_PATH/deploy.sh"
+          bash "$GITHUB_WORKSPACE/deploy.sh"
