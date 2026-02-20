@@ -122,7 +122,7 @@ jobs:
           
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
       - name: Deploy via VPS
-        uses: SmartProrab/cicd_pipeline/actions/deploy-to-vps@0.5.0-dev.2
+        uses: SmartProrab/cicd_pipeline/actions/deploy-to-vps@v0.5.0-dev.2
         with:
           app_name: ${{ inputs.app_name }}
           host: ${{ secrets.VPS_HOST }}
