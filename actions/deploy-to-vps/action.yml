@@ -44,12 +44,12 @@ runs:
         username: ${{ inputs.username }}
         key: ${{ inputs.key }}
         script: |
-          export APP=${{ inputs.app_name }}
-          export IMAGE=${{ inputs.image_with_tag }}
-          export APP_TYPE=${{ inputs.app_type }}
-          export TIMEOUT=${{ inputs.health_timeout }}
-          export PATH_TO_APP=${{ inputs.path }}
-          export APP_IMAGE_URL=${{ inputs.app_image_url }}
+          export APP="${{ inputs.app_name }}"
+          export IMAGE="${{ inputs.image_with_tag }}"
+          export APP_TYPE="${{ inputs.app_type }}"
+          export TIMEOUT="${{ inputs.health_timeout }}"
+          export PATH_TO_APP="${{ inputs.path }}"
+          export APP_IMAGE_URL="${{ inputs.app_image_url }}"
           ./deploy.sh
           
 
