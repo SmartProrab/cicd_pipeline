@@ -21,10 +21,18 @@ inputs:
   path:
     description: Path to VPS on docker compose with this app without '~/'
     required: false
+  app_type:
+    description: Type application (spring, vue)
+    required: false
+    default: 'spring'
   health_timeout:
     description: Seconds to wait for healthy container
     required: false
     default: "60"
+  app_image_url:
+    description: URL current docker image
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -61,8 +69,16 @@ runs:
           
           echo "Current image: $OLD_IMAGE"
           echo "Pull new image: $IMAGE"
+                  
+          APP_IMAGE_URL=""
+          if [[ -n "${{ inputs.app_image_url }}" ]]; then
+            APP_IMAGE_URL="${{ inputs.app_image_url }}"
+          fi
           
-          export TAG="$IMAGE"
+          APP_IMAGE_URL=$(echo "$APP" | tr '[:lower:]-' '[:upper:]_')_IMAGE
+          echo "AUTOCREATED APP_IMAGE_URL"
+#          export TAG="$IMAGE"
+          export "${APP_IMAGE_URL}"="$IMAGE"
           docker compose pull "$APP"
           
           echo "Starting updated container..."
@@ -71,15 +87,27 @@ runs:
             exit 1
           fi
           
+          APP_TYPE="${{ inputs.app_type }}"
           echo "Waiting for healthcheck $TIMEOUT seconds..."
           START_TIME=$(date +%s)
           while true; do
             CONTAINER_ID=$(docker compose ps -q "$APP")
-            STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_ID" 2>/dev/null || echo "no-healthcheck")
-            
-            if [[ "$STATUS" == "healthy" ]] || [[ "$STATUS" == "no-healthcheck" ]]; then
-              echo "Container is healthy"
-              break
+          
+            if [[ "$APP_TYPE" == "spring" ]]; then
+              STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_ID" 2>/dev/null || echo "no-healthcheck")
+              if [[ "$STATUS" == "healthy" ]] || [[ "$STATUS" == "no-healthcheck" ]]; then
+                echo "Container is healthy"
+                break
+              fi  
+            elif [[ "$APP_TYPE" == "vue" ]]; then
+              HTTP_CODE=$(docker exec "$CONTAINER_ID" curl -s -o /dev/null -w "%{http_code}" http://localhost:80/ || echo 0)
+              if [[ "$HTTP_CODE" == "200" ]]; then
+                echo "Vue container is responding"
+                break
+              fi
+            else
+              echo "Unknown app type: $APP_TYPE"
+              exit 1
             fi
           
             NOW=$(date +%s)
@@ -91,7 +119,7 @@ runs:
           
               if [[ -n "$OLD_IMAGE" ]]; then
                 export TAG=$(echo "$OLD_IMAGE")
-                doсker compose up -d --no-deps "$APP" 
+                docker compose up -d --no-deps "$APP" 
               fi
           
               exit 1
