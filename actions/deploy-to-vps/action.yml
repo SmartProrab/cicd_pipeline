@@ -71,7 +71,7 @@ runs:
           # Helps
           #------------------------------------
           log() {
-            echo "[$(date + '%Y-%m-%d %H:%M:%S')] $*"
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
           }
 
           rollback() {
@@ -95,6 +95,18 @@ runs:
           fi
           
           #------------------------------------
+          # Setup APP_IMAGE_URL variable
+          #------------------------------------
+          if [[ -n "$APP_IMAGE_URL" ]]; then
+            IMAGE_VAR="$APP_IMAGE_URL"
+          else
+            IMAGE_VAR=$(echo "$APP" | tr '[:lower:]-' '[:upper:]_')_IMAGE
+          fi
+
+          log "Using APP_IMAGE: $IMAGE_VAR"
+          export "$IMAGE_VAR"="$IMAGE"
+          
+          #------------------------------------
           # Detect current container/image
           #------------------------------------
           log "Detect current container..."
@@ -106,18 +118,6 @@ runs:
           fi
 
           log "Current image: ${OLD_IMAGE:-none}"
-          
-          #------------------------------------
-          # Setup APP_IMAGE_URL variable
-          #------------------------------------
-          if [[ -n "$APP_IMAGE_URL" ]]; then
-            IMAGE_VAR="$APP_IMAGE_URL"
-          else
-            IMAGE_VAR=$(echo "$APP" | tr '[:lower:]-' '[:upper:]_')_IMAGE
-          fi
-
-          log "Using APP_IMAGE: $IMAGE_VAR"
-          export "$IMAGE_VAR"="$IMAGE"
 
           #------------------------------------
           # Pull new image
@@ -166,7 +166,7 @@ runs:
           #------------------------------------
           log "Cleaning ol images for $APP (keep current: $IMAGE)..."
 
-          IMAGES_TO_REMOVE=$(docker image --format '{{.Repository}}:{{.Tag}} {{.ID}}' | grep "^${APP}:" | awk -v keep="$IMAGE" '$1 != keep {print $2}')
+          IMAGES_TO_REMOVE=$(docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' | grep "^${APP}:" | awk -v keep="$IMAGE" '$1 != keep {print $2}')
 
           if [[ -n "$IMAGES_TO_REMOVE" ]]; then
             log "Removing images: $IMAGES_TO_REMOVE"
