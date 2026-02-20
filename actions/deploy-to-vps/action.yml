@@ -39,13 +39,16 @@ runs:
   using: composite
   steps:
     - uses: actions/checkout@v6
+    - name: Check deploy.sh exists
+      shell: bash
+      run: ls -la "$GITHUB_ACTION_PATH/actions/deploy-to-vps/"
     - name: Copy deploy.sh to VPS
       uses: appleboy/scp-action@v1
       with:
         host: ${{ inputs.host }}
         username: ${{ inputs.username }}
         key: ${{ inputs.key }}
-        source: "$GITHUB_WORKSPACE/actions/deploy-to-vps/deploy.sh"
+        source: "$GITHUB_ACTION_PATH/actions/deploy-to-vps/deploy.sh"
         target: "~/deploy.sh"
 
     - name: Deploy via SSH
