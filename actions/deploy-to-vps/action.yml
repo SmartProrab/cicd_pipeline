@@ -21,6 +21,7 @@ inputs:
   path:
     description: Path to VPS on docker compose with this app without '~/'
     required: false
+    default: ""
   app_type:
     description: Type application (spring, vue)
     required: false
@@ -37,107 +38,156 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Deploy via SSH
-      uses: appleboy/ssh-action@v1.0.3
+    - uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ inputs.host }}
         username: ${{ inputs.username }}
         key: ${{ inputs.key }}
         script: |
-          export APP="${{ inputs.app_name }}"
-          export IMAGE="${{ inputs.image_with_tag }}"
-          export APP_TYPE="${{ inputs.app_type }}"
-          export TIMEOUT="${{ inputs.health_timeout }}"
-          export PATH_TO_APP="${{ inputs.path }}"
-          export APP_IMAGE_URL="${{ inputs.app_image_url }}"
-          ./deploy.sh
-          
+          set -euo pipefail
 
-#          set -e
-#
-#          APP="${{ inputs.app_name }}"
-#          IMAGE="${{ inputs.image_with_tag }}"
-#          TIMEOUT="${{ inputs.health_timeout }}"
-#
-#          if [[ -n "${{ inputs.path }}" ]]; then
-#            cd ~/"${{ inputs.path }}"
-#          fi
-#
-#          if [ ! -f docker-compose.yml ]; then
-#            echo "docker-compose.yml not found in $(pwd)"
-#            exit 1
-#          fi
-#
-#          echo "Detecting current container..."
-#          OLD_CONTAINER=$(docker compose ps -q "$APP" || true)
-#
-#          OLD_IMAGE=""
-#          if [[ -n "$OLD_CONTAINER" ]]; then
-#            OLD_IMAGE=$(docker inspect --format='{{.Config.Image}}' "$OLD_CONTAINER")
-#          fi
-#
-#          echo "Current image: $OLD_IMAGE"
-#          echo "Pull new image: $IMAGE"
-#
-#          APP_IMAGE_URL=""
-#          if [[ -n "${{ inputs.app_image_url }}" ]]; then
-#            APP_IMAGE_URL="${{ inputs.app_image_url }}"
-#          fi
-#
-#          APP_IMAGE_URL=$(echo "$APP" | tr '[:lower:]-' '[:upper:]_')_IMAGE
-#          echo "AUTOCREATED APP_IMAGE_URL"
-##          export TAG="$IMAGE"
-#          export "${APP_IMAGE_URL}"="$IMAGE"
-#          docker compose pull "$APP"
-#
-#          echo "Starting updated container..."
-#          if ! docker compose up -d --no-deps "$APP"; then
-#            echo "Failed to start new container"
-#            exit 1
-#          fi
-#
-#          APP_TYPE="${{ inputs.app_type }}"
-#          echo "Waiting for healthcheck $TIMEOUT seconds..."
-#          START_TIME=$(date +%s)
-#          while true; do
-#            CONTAINER_ID=$(docker compose ps -q "$APP")
-#
-#            if [[ "$APP_TYPE" == "spring" ]]; then
-#              STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_ID" 2>/dev/null || echo "no-healthcheck")
-#              if [[ "$STATUS" == "healthy" ]] || [[ "$STATUS" == "no-healthcheck" ]]; then
-#                echo "Container is healthy"
-#                break
-#              fi
-#            elif [[ "$APP_TYPE" == "vue" ]]; then
-#              HTTP_CODE=$(docker exec "$CONTAINER_ID" curl -s -o /dev/null -w "%{http_code}" http://localhost:80/ || echo 0)
-#              if [[ "$HTTP_CODE" == "200" ]]; then
-#                echo "Vue container is responding"
-#                break
-#              fi
-#            else
-#              echo "Unknown app type: $APP_TYPE"
-#              exit 1
-#            fi
-#
-#            NOW=$(date +%s)
-#            ELAPSED=$((NOW - START_TIME))
-#
-#            if [[ $ELAPSED -ge $TIMEOUT ]]; then
-#              echo "Healthcheck timeout reached"
-#              echo "Rolling back..."
-#
-#              if [[ -n "$OLD_IMAGE" ]]; then
-#                export TAG=$(echo "$OLD_IMAGE")
-#                docker compose up -d --no-deps "$APP"
-#              fi
-#
-#              exit 1
-#            fi
-#
-#            sleep 3
-#          done
-#
-#          echo "Cleaning dangling images..."
-#          docker image prune -f
-#
-#          echo "Deploy finished successfully"
+          #------------------------------------
+          # Environment Variables
+          #------------------------------------
+          # Обязательные
+          APP="${{ inputs.app_name }}"
+          IMAGE="${{ inputs.image_with_tag }}"
+
+          # Опциональные с дефолтами
+          APP_TYPE="${{ inputs.app_type }}"
+          TIMEOUT="${{ inputs.health_timeout }}"
+          PATH_TO_APP="${{ inputs.path }}"
+          APP_IMAGE_URL="${{ inputs.app_image_url }}"
+          
+          #------------------------------------
+          # Validate requires
+          #------------------------------------
+          if [[ -z "$APP" || -z "$IMAGE" ]]; then
+            echo "Required environments: APP, IMAGE"
+            exit 1
+          fi
+
+          #------------------------------------
+          # Helps
+          #------------------------------------
+          log() {
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+          }
+
+          rollback() {
+            if [[ -n "$OLD_IMAGE" ]]; then
+                log "Rolling back to previous image: $OLD_IMAGE"
+                docker compose --profile "$APP" up -d --no-deps "$APP"
+            fi
+            exit 1
+          }
+          
+          #------------------------------------
+          # Change directory if specified
+          #------------------------------------
+          if [[ -n "$PATH_TO_APP" ]]; then
+              cd ~/"$PATH_TO_APP" || { log "Cannot cd to $PATH_TO_APP"; exit 1; }
+          fi
+
+          if [[ ! -f docker-compose.yml ]]; then
+              log "docker-compose.yml not found in $(pwd)"
+              exit 1
+          fi
+          
+          #------------------------------------
+          # Setup APP_IMAGE_URL variable
+          #------------------------------------
+          if [[ -n "$APP_IMAGE_URL" ]]; then
+            IMAGE_VAR="$APP_IMAGE_URL"
+          else
+            IMAGE_VAR=$(echo "$APP" | tr '[:lower:]-' '[:upper:]_')_IMAGE
+          fi
+
+          log "Using APP_IMAGE: $IMAGE_VAR"
+          export "$IMAGE_VAR"="$IMAGE"
+          
+          #------------------------------------
+          # Detect current container/image
+          #------------------------------------
+          log "Detect current container..."
+          OLD_CONTAINER=$(docker compose --profile "$APP" ps -q "$APP" || true)
+
+          OLD_IMAGE=""
+          if [[ -n "$OLD_CONTAINER" ]]; then
+              OLD_IMAGE=$(docker inspect --format='{{.Config.Image}}' "$OLD_CONTAINER")
+          fi
+
+          log "Current image: ${OLD_IMAGE:-none}"
+
+          #------------------------------------
+          # Pull new image
+          #------------------------------------
+          log "Pull new image: $IMAGE"
+          docker compose --profile "$APP" pull "$APP"
+
+          #------------------------------------
+          # Start new container
+          #------------------------------------
+          log "Starting update container..."
+          docker compose --profile "$APP" up -d --no-deps "$APP"
+          
+          #------------------------------------
+          # Healthcheck
+          #------------------------------------
+          log "Waiting for container health (timeout ${TIMEOUT}s)..."
+          START_TIME=$(date +%s)
+
+          while true; do
+            CONTAINER_ID=$(docker compose --profile "$APP" ps -q "$APP")
+
+            if [[ "$APP_TYPE" == "spring" ]]; then
+              STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_ID" 2>/dev/null || echo "no-healthcheck")
+              [[ "$STATUS" == "healthy" || "$STATUS" == "no-healthcheck" ]] && break
+            elif [[ "$APP_TYPE" == "vue" ]]; then
+              HTTP_CODE=$(docker exec "$CONTAINER_ID" curl -s -o /dev/null -w "%{http_code}" http://localhost:80/ || echo 0)
+              [[ "$HTTP_CODE" == "200" ]] && break
+            else
+              echo "Unknown APP_TYPE: $APP_TYPE"
+              rollback
+            fi
+
+            NOW=$(date +%s)
+            ELAPSED=$((NOW - START_TIME))
+            if [[ $ELAPSED -ge $TIMEOUT ]]; then
+              log "Healthcheck timeout reached"
+              rollback
+            fi
+
+            sleep 3
+          done
+          
+          #------------------------------------
+          # Cleanup
+          #------------------------------------
+          log "Cleaning ol images for $APP (keep current: $IMAGE)..."
+
+          REPO=$(echo "$IMAGE" | cut -d: -f1)
+          CURRENT_ID=$(docker image inspect "$IMAGE" --format '{{.Id}}')
+          
+          # Получаем только образы репозитория
+          ALL_IDS=$(docker images "$REPO" --format '{{.ID}}')
+          
+          IMAGES_TO_REMOVE=""
+          
+          for ID in $ALL_IDS; do
+            if [[ "$ID" != "$CURRENT_ID" ]]; then
+              IN_USE=$(docker ps -a --filter "ancestor=$ID" -q)
+              if [[ -z "$IN_USE" ]]; then
+              IMAGES_TO_REMOVE="$IMAGES_TO_REMOVE $ID"
+              fi
+            fi
+          done
+          
+          if [[ -n "$IMAGES_TO_REMOVE" ]]; then
+            log "Removing images:$IMAGES_TO_REMOVE"
+            docker rmi $IMAGES_TO_REMOVE || true
+          else
+            log "No removable images found"
+          fi
+
+          log "Deploy finished successfully!"
