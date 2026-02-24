@@ -122,7 +122,7 @@ runs:
           #------------------------------------
           # Pull new image
           #------------------------------------
-          log "Pull new image: $OLD_IMAGE"
+          log "Pull new image: $IMAGE"
           docker compose --profile "$APP" pull "$APP"
 
           #------------------------------------
