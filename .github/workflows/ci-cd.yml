@@ -31,6 +31,11 @@ on:
         type: string
         required: false
         default: ''
+      environment:
+        description: Environment with application, if required
+        type: string
+        required: false
+        default: ''
     secrets:
       VPS_HOST:
         description: VPS host ip address
@@ -59,6 +64,8 @@ jobs:
         id: docker-build
         with:
           image_repository: ${{ needs.normalize.outputs.image_repository }}
+          environment: ${{ inputs.environment }}
+          app_type: ${{ inputs.app_type }}
 
   release:
     runs-on: ubuntu-latest
@@ -123,7 +130,7 @@ jobs:
           
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
       - name: Deploy via VPS
-        uses: SmartProrab/cicd_pipeline/actions/deploy-to-vps@v0.6.0
+        uses: SmartProrab/cicd_pipeline/actions/deploy-to-vps@v0.7.0-dev.1
         with:
           app_name: ${{ inputs.app_name }}
           host: ${{ secrets.VPS_HOST }}
