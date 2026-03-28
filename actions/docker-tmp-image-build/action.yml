@@ -3,9 +3,23 @@ description: Build Spring Boot application and Build Docker image with tag assoc
 author: NikitaLyubimtsev
 
 inputs:
+  username:
+    description: GitHub username / actor
+    required: true
+  password:
+    description: GitHub password / token
+    required: true
   image_repository:
     description: Path to docker image repository
     required: true
+  app_type:
+    description: Type Application with select build environments
+    required: false
+    default: "spring"
+  environment:
+    description: Environment with application, if required
+    required: false
+    default: ""
 
 outputs:
   default_docker_image:
@@ -16,6 +30,7 @@ runs:
   using: composite
   steps:
     - name: Gradle cache
+      if: ${{ inputs.app_type == 'spring' }}
       uses: actions/cache@v5
       with:
         path: |
@@ -25,13 +40,32 @@ runs:
         restore-keys: |
           ${{ runner.os }}-gradle-
     - name: Setup JDK 21
+      if: ${{ inputs.app_type == 'spring' }}
       uses: actions/setup-java@v5
       with:
         distribution: temurin
         java-version: 21
     - name: Build app jar
+      if: ${{ inputs.app_type == 'spring' }}
       shell: bash
       run: ./gradlew clean build -x test
+    - name: Setup Node.js
+      if: ${{ inputs.app_type == 'vue' }}
+      uses: actions/setup-node@v5
+      with:
+        node-version: 20
+    - name: Build
+      if: ${{ inputs.app_type == 'vue' }}
+      shell: bash
+      run: |
+        set -e
+        ENV="${{ inputs.environment }}"
+        if [[ -z "$ENV" ]]; then
+          echo "With VUE APP Environment is required. Environment is required. Available: dev, prod, staging"
+          exit 1
+        fi
+        npm ci
+        npm run build:${{ inputs.environment }}
     - name: Create docker default tag
       shell: bash
       id: docker-tag
@@ -47,8 +81,8 @@ runs:
     - uses: docker/login-action@v3
       with:
         registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
     - name: Publish default docker image
       id: publish-default
       shell: bash

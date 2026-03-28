@@ -27,7 +27,7 @@ runs:
     - name: Run semantic-release
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
       run: npx semantic-release --extends "$GITHUB_ACTION_PATH/release.config.js"
 
     - name: Read new release version

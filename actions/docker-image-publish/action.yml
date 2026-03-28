@@ -3,6 +3,12 @@ description: Publication docker image in Github container registry
 author: NikitaLyubimtsev
 
 inputs:
+  username:
+    description: GitHub username / actor
+    required: true
+  password:
+    description: GitHub password / token
+    required: true
   image_repository:
     description: Full GHCR image repository path
     required: true
@@ -20,8 +26,8 @@ runs:
     - uses: docker/login-action@v3
       with:
         registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
     - name: Create branch docker tag
       id: branch-tag
       shell: bash
