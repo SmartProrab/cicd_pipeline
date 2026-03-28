@@ -2,10 +2,6 @@ name: Run Semantic release
 author: NikitaLyubimtsev
 description: Set default config and run semantic release with current repository
 
-inputs:
-  github_token:
-    description: GitHub Token
-    required: true
 outputs:
   last_version:
     description: Last release version with semantic-release
@@ -31,7 +27,7 @@ runs:
     - name: Run semantic-release
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
+        GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
       run: npx semantic-release --extends "$GITHUB_ACTION_PATH/release.config.js"
 
     - name: Read new release version
