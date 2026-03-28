@@ -48,7 +48,7 @@ jobs:
       image_repository: ${{ steps.normalize.outputs.image_repository }}
     steps:
       - uses: actions/checkout@v6
-      - uses: SmartProrab/cicd_pipeline/actions/normalize-repo-name@v0.7.0-dev.4
+      - uses: SmartProrab/cicd_pipeline/actions/normalize-repo-name@v0.7.0-dev.6
         id: normalize
       - run: |
           echo "REPO: ${{ steps.normalize.outputs.image_repository }}"
@@ -60,7 +60,7 @@ jobs:
       default_docker_image: ${{ steps.docker-build.outputs.default_docker_image }}
     steps:
       - uses: actions/checkout@v6
-      - uses: SmartProrab/cicd_pipeline/actions/docker-tmp-image-build@v0.7.0-dev.4
+      - uses: SmartProrab/cicd_pipeline/actions/docker-tmp-image-build@v0.7.0-dev.6
         id: docker-build
         with:
           image_repository: ${{ needs.normalize.outputs.image_repository }}
@@ -76,7 +76,7 @@ jobs:
       last_version: ${{ steps.semver.outputs.last_version }}
     steps:
       - uses: actions/checkout@v6
-      - uses: SmartProrab/cicd_pipeline/actions/semantic-release-run@v0.7.0-dev.4
+      - uses: SmartProrab/cicd_pipeline/actions/semantic-release-run@v0.7.0-dev.6
         id: semver
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -86,7 +86,7 @@ jobs:
     needs: [ normalize, build_docker, release ]
     steps:
       - uses: actions/checkout@v6
-      - uses: SmartProrab/cicd_pipeline/actions/docker-image-publish@v0.7.0-dev.4
+      - uses: SmartProrab/cicd_pipeline/actions/docker-image-publish@v0.7.0-dev.6
         with:
           default_docker_image: ${{ needs.build_docker.outputs.default_docker_image }}
           image_repository: ${{ needs.normalize.outputs.image_repository }}
@@ -136,7 +136,7 @@ jobs:
           
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
       - name: Deploy via VPS
-        uses: SmartProrab/cicd_pipeline/actions/deploy-to-vps@v0.7.0-dev.4
+        uses: SmartProrab/cicd_pipeline/actions/deploy-to-vps@v0.7.0-dev.6
         with:
           app_type: ${{ inputs.app_type }}
           app_name: ${{ inputs.app_name }}
