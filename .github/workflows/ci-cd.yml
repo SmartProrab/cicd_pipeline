@@ -40,9 +40,6 @@ on:
       VPS_HOST:
         description: VPS host ip address
         required: false
-      GITHUB_TOKEN:
-        description: GitHub token
-        required: true
 
 jobs:
   normalize:
