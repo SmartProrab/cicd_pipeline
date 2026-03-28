@@ -3,6 +3,12 @@ description: Build Spring Boot application and Build Docker image with tag assoc
 author: NikitaLyubimtsev
 
 inputs:
+  username:
+    description: GitHub username / actor
+    required: true
+  password:
+    description: GitHub password / token
+    required: true
   image_repository:
     description: Path to docker image repository
     required: true
@@ -75,8 +81,8 @@ runs:
     - uses: docker/login-action@v3
       with:
         registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
     - name: Publish default docker image
       id: publish-default
       shell: bash
